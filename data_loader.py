@@ -1,6 +1,37 @@
 import pandas as pd
 import numpy as np
 import os
+import shutil
+
+
+def ensure_data(data_dir="data"):
+    """
+    Auto-download the Seattle Airbnb dataset from Kaggle using kagglehub
+    if the CSV files are not already present locally.
+    Requires KAGGLE_USERNAME and KAGGLE_KEY environment variables to be set.
+    """
+    listings_path = os.path.join(data_dir, "listings.csv")
+    calendar_path = os.path.join(data_dir, "calendar.csv")
+
+    if os.path.exists(listings_path) and os.path.exists(calendar_path):
+        return  # already downloaded
+
+    try:
+        import kagglehub
+        print("📥 Downloading Seattle Airbnb dataset from Kaggle...")
+        path = kagglehub.dataset_download("airbnb/seattle")
+        os.makedirs(data_dir, exist_ok=True)
+        # Copy CSVs from the kagglehub cache into our data/ folder
+        for fname in ["listings.csv", "calendar.csv", "reviews.csv"]:
+            src = os.path.join(path, fname)
+            dst = os.path.join(data_dir, fname)
+            if os.path.exists(src) and not os.path.exists(dst):
+                shutil.copy2(src, dst)
+                print(f"  ✅ Copied {fname}")
+        print("📦 Dataset ready.")
+    except Exception as e:
+        print(f"⚠️  Could not auto-download data: {e}")
+        print("    Set KAGGLE_USERNAME and KAGGLE_KEY env vars, or place CSVs in data/ manually.")
 
 def load_listings_data(file_path):
     """Load and clean the listings CSV data."""

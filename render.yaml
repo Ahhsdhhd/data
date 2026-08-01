@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: airbnb-analytics-dashboard
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port 10000 --server.headless true
+    envVars:
+      - key: KAGGLE_USERNAME
+        sync: false
+      - key: KAGGLE_KEY
+        sync: false
+    autoDeploy: true

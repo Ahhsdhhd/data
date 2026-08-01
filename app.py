@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from data_loader import (
+    ensure_data,
     load_listings_data,
     load_calendar_data,
     get_host_quality_metrics,
@@ -18,6 +19,9 @@ from data_loader import (
     get_amenity_premiums,
     parse_amenities,
 )
+
+# Auto-download data if not present (for Render / cloud deployments)
+ensure_data()
 
 # ─── Page Config ──────────────────────────────────────────────────────────────
 st.set_page_config(
