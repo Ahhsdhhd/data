@@ -1,250 +1,350 @@
-import re
-import os
-import numpy as np
 import pandas as pd
+import numpy as np
+import os
 
-# ──────────────────────────────────────────────
-# LOADING & CLEANING
-# ──────────────────────────────────────────────
-
-def load_listings_data(file_path="data/listings.csv"):
+def load_listings_data(file_path):
     """Load and clean the listings CSV data."""
     if not os.path.exists(file_path):
         return None
 
-    df = pd.read_csv(file_path, low_memory=False)
+    df = pd.read_csv(file_path)
 
-    # Clean money columns
-    for col in ["price", "cleaning_fee", "security_deposit", "extra_people", "weekly_price", "monthly_price"]:
+    # Clean price columns
+    price_cols = ['price', 'cleaning_fee', 'security_deposit', 'extra_people']
+    for col in price_cols:
         if col in df.columns:
-            df[col] = df[col].replace(r"[\$,]", "", regex=True).astype(float)
+            df[col] = df[col].astype(str).str.replace(r'[\$,]', '', regex=True)
+            df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # Clean percentage columns
-    for col in ["host_response_rate", "host_acceptance_rate"]:
+    pct_cols = ['host_response_rate', 'host_acceptance_rate']
+    for col in pct_cols:
         if col in df.columns:
-            df[col] = df[col].replace(r"[%,]", "", regex=True)
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = df[col].astype(str).str.replace(r'[\%,]', '', regex=True)
+            df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # Convert boolean columns
-    for col in ["host_is_superhost", "host_has_profile_pic", "host_identity_verified",
-                "instant_bookable", "is_location_exact", "has_availability", "requires_license"]:
+    bool_cols = ['host_is_superhost', 'host_has_profile_pic', 'host_identity_verified',
+                 'instant_bookable', 'is_location_exact']
+    for col in bool_cols:
         if col in df.columns:
-            df[col] = df[col].map({"t": True, "f": False})
+            df[col] = df[col].map({'t': True, 'f': False})
 
-    # Parse dates and derive host tenure
-    for col in ["host_since", "first_review", "last_review", "last_scraped", "calendar_last_scraped"]:
+    # Ensure numeric ratings
+    rating_cols = [
+        'review_scores_rating', 'review_scores_accuracy', 'review_scores_cleanliness',
+        'review_scores_checkin', 'review_scores_communication', 'review_scores_location',
+        'review_scores_value'
+    ]
+    for col in rating_cols:
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors="coerce")
-
-    if "host_since" in df.columns:
-        df["host_tenure_years"] = (pd.Timestamp.now() - df["host_since"]).dt.days / 365.25
-
-    # Estimated monthly revenue proxy (from listings only):
-    # booked nights ~ (365 - availability_365), monthly revenue = price * booked/30
-    if "price" in df.columns and "availability_365" in df.columns:
-        booked_365 = (365 - df["availability_365"]).clip(lower=0)
-        df["estimated_monthly_revenue"] = df["price"] * booked_365 / 30.0
+            df[col] = pd.to_numeric(df[col], errors='coerce')
 
     return df
 
 
-def load_calendar_data(file_path="data/calendar.csv"):
+def load_calendar_data(file_path):
     """Load and clean the calendar CSV data."""
     if not os.path.exists(file_path):
         return None
 
-    df = pd.read_csv(file_path, low_memory=False)
+    df = pd.read_csv(file_path)
 
-    if "price" in df.columns:
-        df["price"] = df["price"].replace(r"[\$,]", "", regex=True).astype(float)
+    # Clean price column
+    if 'price' in df.columns:
+        df['price'] = df['price'].astype(str).str.replace(r'[\$,]', '', regex=True)
+        df['price'] = pd.to_numeric(df['price'], errors='coerce')
 
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
+    # Convert date column
+    if 'date' in df.columns:
+        df['date'] = pd.to_datetime(df['date'])
+
+    # Convert available to boolean
+    if 'available' in df.columns:
+        df['available'] = df['available'].map({'t': True, 'f': False})
+        df['booked'] = ~df['available']
 
     return df
 
 
-# ──────────────────────────────────────────────
-# TAB 1 · HOST QUALITY
-# ──────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  Q1 – HOST QUALITY
+# ─────────────────────────────────────────────
 
 def get_host_quality_metrics(df):
-    """Return a summary dict of host quality metrics."""
-    metrics = {
-        "total_hosts": int(df["host_id"].nunique()) if "host_id" in df.columns else 0,
-        "superhost_pct": (df["host_is_superhost"].sum() / len(df) * 100) if "host_is_superhost" in df.columns else 0,
-        "avg_response_rate": df["host_response_rate"].mean() if "host_response_rate" in df.columns else 0,
-        "avg_acceptance_rate": df["host_acceptance_rate"].mean() if "host_acceptance_rate" in df.columns else 0,
-        "avg_host_rating": df["review_scores_rating"].mean() if "review_scores_rating" in df.columns else 0,
+    """Calculate top-level host quality KPIs."""
+    return {
+        'total_hosts': df['host_id'].nunique() if 'host_id' in df.columns else 0,
+        'superhost_pct': (df['host_is_superhost'].sum() / len(df) * 100) if 'host_is_superhost' in df.columns else 0,
+        'avg_response_rate': df['host_response_rate'].mean() if 'host_response_rate' in df.columns else 0,
+        'avg_acceptance_rate': df['host_acceptance_rate'].mean() if 'host_acceptance_rate' in df.columns else 0,
+        'avg_host_rating': df['review_scores_rating'].mean() if 'review_scores_rating' in df.columns else 0,
     }
-    return metrics
 
+
+# ─────────────────────────────────────────────
+#  Q2 – AREA RATINGS & DIAGNOSTICS
+# ─────────────────────────────────────────────
 
 def get_area_ratings(df):
-    """Ratings summary per neighbourhood."""
-    if "neighbourhood_cleansed" not in df.columns:
+    """Get average rating, listing count, and avg price by neighbourhood."""
+    if 'neighbourhood_cleansed' not in df.columns:
         return pd.DataFrame()
 
-    out = df.groupby("neighbourhood_cleansed").agg(
-        avg_rating=("review_scores_rating", "mean"),
-        listing_count=("id", "count"),
-        avg_price=("price", "mean"),
-    ).sort_values("avg_rating", ascending=True)
+    area_ratings = df.groupby('neighbourhood_cleansed').agg(
+        review_scores_rating=('review_scores_rating', 'mean'),
+        listing_count=('id', 'count'),
+        avg_price=('price', 'mean')
+    ).sort_values('review_scores_rating', ascending=True)
 
-    return out
-
-
-# ──────────────────────────────────────────────
-# TAB 2 · AREA RATINGS & IMPROVEMENTS
-# ──────────────────────────────────────────────
-
-SUB_RATING_COLS = {
-    "review_scores_accuracy": "Accuracy",
-    "review_scores_cleanliness": "Cleanliness",
-    "review_scores_checkin": "Check-in",
-    "review_scores_communication": "Communication",
-    "review_scores_location": "Location",
-    "review_scores_value": "Value",
-}
+    return area_ratings
 
 
 def get_area_deficiencies(df, min_listings=5):
-    """Identify underperforming neighbourhoods and their weakest review domain."""
-    if "neighbourhood_cleansed" not in df.columns:
+    """
+    For each neighbourhood identify its weakest sub-rating category.
+    Returns a sorted table with the Primary Deficiency column.
+    """
+    sub_rating_map = {
+        'review_scores_cleanliness': 'Cleanliness',
+        'review_scores_accuracy': 'Accuracy',
+        'review_scores_checkin': 'Check-in',
+        'review_scores_communication': 'Communication',
+        'review_scores_location': 'Location',
+        'review_scores_value': 'Value',
+    }
+
+    sub_cols = [c for c in sub_rating_map if c in df.columns]
+    if 'neighbourhood_cleansed' not in df.columns or len(sub_cols) < 2:
         return pd.DataFrame()
 
-    available_sub = [c for c in SUB_RATING_COLS if c in df.columns]
-    if not available_sub:
-        return pd.DataFrame()
+    agg = {'id': 'count', 'review_scores_rating': 'mean'}
+    agg.update({c: 'mean' for c in sub_cols})
 
-    groups = df.dropna(subset=["review_scores_rating", *available_sub]).groupby("neighbourhood_cleansed")
+    grouped = df.groupby('neighbourhood_cleansed').agg(agg)
+    grouped = grouped[grouped['id'] >= min_listings]
 
     rows = []
-    for nb, g in groups:
-        if len(g) < min_listings:
-            continue
-        avg_rating = g["review_scores_rating"].mean()
-        sub_means = {SUB_RATING_COLS[c]: g[c].mean() for c in available_sub}
-        lowest_domain = min(sub_means, key=sub_means.get)
-        rows.append({
-            "Neighbourhood": nb,
-            "Number of Listings": len(g),
-            "Average Rating": round(avg_rating, 2),
-            "Lowest Score Category": lowest_domain,
-            "Lowest Score Value": round(sub_means[lowest_domain], 2),
-        })
+    for idx, row in grouped.iterrows():
+        scores = {sub_rating_map[c]: row[c] for c in sub_cols if not pd.isna(row[c])}
+        if scores:
+            worst = min(scores, key=scores.get)
+            rows.append({
+                'Neighbourhood': idx,
+                'Total Listings': int(row['id']),
+                'Avg Rating (100)': round(row['review_scores_rating'], 1),
+                'Primary Deficiency': worst,
+                'Deficiency Score (/10)': round(scores[worst], 2),
+            })
 
-    out = pd.DataFrame(rows).sort_values("Average Rating", ascending=True)
-    return out
+    result = pd.DataFrame(rows)
+    return result.sort_values('Avg Rating (100)') if not result.empty else result
 
 
-# ──────────────────────────────────────────────
-# TAB 3 · REVENUE
-# ──────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  Q3 – REVENUE ANALYSIS  (calendar-powered)
+# ─────────────────────────────────────────────
 
-def get_revenue_data(df):
-    """Per-neighbourhood revenue summary (indexed by neighbourhood_cleansed)."""
-    if "neighbourhood_cleansed" not in df.columns or "estimated_monthly_revenue" not in df.columns:
+def get_calendar_occupancy(calendar_df, listings_df):
+    """
+    Compute real occupancy rate per neighbourhood using calendar availability data.
+    Occupancy = booked nights / total nights tracked per listing.
+    """
+    if calendar_df is None or listings_df is None:
+        return pd.DataFrame()
+    if 'neighbourhood_cleansed' not in listings_df.columns:
         return pd.DataFrame()
 
-    out = df.groupby("neighbourhood_cleansed").agg(
-        listing_count=("id", "count"),
-        avg_price=("price", "mean"),
-        total_reviews=("number_of_reviews", "sum") if "number_of_reviews" in df.columns else ("id", "count"),
-        estimated_monthly_revenue=("estimated_monthly_revenue", "sum"),
-    ).sort_values("estimated_monthly_revenue", ascending=False)
+    # Map listing_id → neighbourhood
+    nb_map = listings_df.set_index('id')['neighbourhood_cleansed'].to_dict()
+    cal = calendar_df.copy()
+    cal['neighbourhood'] = cal['listing_id'].map(nb_map)
+    cal = cal.dropna(subset=['neighbourhood'])
 
-    return out
+    occ = cal.groupby('neighbourhood').agg(
+        total_nights=('booked', 'count'),
+        booked_nights=('booked', 'sum')
+    )
+    occ['occupancy_rate_pct'] = (occ['booked_nights'] / occ['total_nights'] * 100).round(1)
+    return occ.sort_values('occupancy_rate_pct', ascending=False)
+
+
+def get_real_revenue_by_neighbourhood(calendar_df, listings_df):
+    """
+    Real revenue estimate per neighbourhood:
+      revenue = sum of calendar price on booked (available=False) nights.
+    """
+    if calendar_df is None or listings_df is None:
+        return pd.DataFrame()
+    if 'neighbourhood_cleansed' not in listings_df.columns:
+        return pd.DataFrame()
+
+    nb_map = listings_df.set_index('id')['neighbourhood_cleansed'].to_dict()
+    cal = calendar_df.copy()
+    cal['neighbourhood'] = cal['listing_id'].map(nb_map)
+    cal = cal.dropna(subset=['neighbourhood', 'price'])
+
+    booked = cal[cal['booked'] == True]
+    if booked.empty:
+        return pd.DataFrame()
+
+    rev = booked.groupby('neighbourhood').agg(
+        total_revenue=('price', 'sum'),
+        booked_nights=('price', 'count'),
+        avg_nightly_price=('price', 'mean')
+    ).sort_values('total_revenue', ascending=False)
+
+    rev['total_revenue'] = rev['total_revenue'].round(0)
+    rev['avg_nightly_price'] = rev['avg_nightly_price'].round(2)
+    return rev
+
+
+def get_seasonal_trends(calendar_df):
+    """Monthly occupancy rate and average nightly price trend from calendar data."""
+    if calendar_df is None or calendar_df.empty:
+        return pd.DataFrame()
+    if 'date' not in calendar_df.columns:
+        return pd.DataFrame()
+
+    cal = calendar_df.copy()
+    cal['month'] = cal['date'].dt.to_period('M').astype(str)
+
+    monthly = cal.groupby('month').agg(
+        total_nights=('booked', 'count'),
+        booked_nights=('booked', 'sum'),
+        avg_price=('price', 'mean')
+    )
+    monthly['occupancy_rate_pct'] = (monthly['booked_nights'] / monthly['total_nights'] * 100).round(1)
+    monthly = monthly.sort_index()
+    return monthly
+
+
+def get_revenue_data(df):
+    """Proxy revenue estimate using listings data (fallback when no calendar)."""
+    if 'neighbourhood_cleansed' not in df.columns or 'price' not in df.columns:
+        return pd.DataFrame()
+
+    revenue = df.groupby('neighbourhood_cleansed').agg(
+        avg_price=('price', 'mean'),
+        median_price=('price', 'median'),
+        listing_count=('price', 'count'),
+        total_reviews=('number_of_reviews', 'sum'),
+        monthly_reviews=('reviews_per_month', 'sum')
+    )
+    revenue['estimated_monthly_revenue'] = revenue['avg_price'] * revenue['monthly_reviews']
+    return revenue.sort_values('estimated_monthly_revenue', ascending=False)
 
 
 def get_regional_revenue_data(df):
-    """Macro-region revenue summary (indexed by neighbourhood_group_cleansed)."""
-    if "neighbourhood_group_cleansed" not in df.columns or "estimated_monthly_revenue" not in df.columns:
+    """Proxy revenue by macro region (neighbourhood_group_cleansed)."""
+    group_col = 'neighbourhood_group_cleansed' if 'neighbourhood_group_cleansed' in df.columns else 'neighbourhood_cleansed'
+    if group_col not in df.columns or 'price' not in df.columns:
         return pd.DataFrame()
 
-    out = df.groupby("neighbourhood_group_cleansed").agg(
-        listing_count=("id", "count"),
-        avg_price=("price", "mean"),
-        avg_rating=("review_scores_rating", "mean") if "review_scores_rating" in df.columns else ("id", "count"),
-        estimated_monthly_revenue=("estimated_monthly_revenue", "sum"),
-    ).sort_values("estimated_monthly_revenue", ascending=False)
+    revenue = df.groupby(group_col).agg(
+        avg_price=('price', 'mean'),
+        median_price=('price', 'median'),
+        listing_count=('price', 'count'),
+        monthly_reviews=('reviews_per_month', 'sum')
+    )
+    revenue['estimated_monthly_revenue'] = revenue['avg_price'] * revenue['monthly_reviews']
+    return revenue.sort_values('estimated_monthly_revenue', ascending=False)
 
-    return out
+
+def get_price_vs_listings(df):
+    """Avg price vs listing count scatter data by neighbourhood."""
+    if 'neighbourhood_cleansed' not in df.columns:
+        return pd.DataFrame()
+
+    scatter = df.groupby('neighbourhood_cleansed').agg(
+        avg_price=('price', 'mean'),
+        listing_count=('id', 'count'),
+        avg_rating=('review_scores_rating', 'mean')
+    ).dropna()
+    return scatter.reset_index()
 
 
-# ──────────────────────────────────────────────
-# TAB 4 · PROPERTY ANALYSIS
-# ──────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  Q4 – PROPERTY LEVEL ANALYSIS
+# ─────────────────────────────────────────────
 
 def get_property_analysis(df):
-    """Property-level aggregates keyed by 'by_type' and 'by_room'."""
-    data = {}
+    """Get property-level aggregations by type, room type, bedrooms, bathrooms."""
+    prop = {}
 
-    if "property_type" in df.columns:
-        data["by_type"] = df.groupby("property_type").agg(
-            count=("id", "count"),
-            price=("price", "mean"),
-            rating=("review_scores_rating", "mean") if "review_scores_rating" in df.columns else ("id", "count"),
-        ).sort_values("count", ascending=False)
+    if 'property_type' in df.columns:
+        prop['by_type'] = df.groupby('property_type').agg(
+            price=('price', 'mean'),
+            review_scores_rating=('review_scores_rating', 'mean'),
+            count=('id', 'count')
+        ).sort_values('count', ascending=False)
 
-    if "room_type" in df.columns:
-        data["by_room"] = df.groupby("room_type").agg(
-            count=("id", "count"),
-            price=("price", "mean"),
-            rating=("review_scores_rating", "mean") if "review_scores_rating" in df.columns else ("id", "count"),
+    if 'room_type' in df.columns:
+        prop['by_room'] = df.groupby('room_type').agg(
+            price=('price', 'mean'),
+            review_scores_rating=('review_scores_rating', 'mean'),
+            count=('id', 'count')
         )
 
-    if "bedrooms" in df.columns:
-        data["by_bedrooms"] = df.groupby("bedrooms").agg(
-            count=("id", "count"),
-            price=("price", "mean"),
-        ).drop(0, errors="ignore")
+    if 'bedrooms' in df.columns:
+        bed = df.groupby('bedrooms').agg(
+            price=('price', 'mean'),
+            review_scores_rating=('review_scores_rating', 'mean'),
+            count=('id', 'count')
+        ).drop(0, errors='ignore')
+        prop['by_bedrooms'] = bed
 
-    return data
+    if 'bathrooms' in df.columns:
+        bath = df.groupby('bathrooms').agg(
+            price=('price', 'mean'),
+            review_scores_rating=('review_scores_rating', 'mean'),
+            count=('id', 'count')
+        ).drop(0, errors='ignore')
+        prop['by_bathrooms'] = bath
 
-
-def parse_amenities(df, top_n=30):
-    """Flatten the JSON-style amenities strings into a per-amenity count."""
-    if "amenities" not in df.columns:
-        return pd.Series(dtype=int)
-
-    all_items = []
-    for am in df["amenities"].dropna():
-        clean = am.replace("{", "").replace("}", "").replace('"', "")
-        items = [a.strip() for a in clean.split(",") if a.strip()]
-        all_items.extend(items)
-
-    return pd.Series(all_items).value_counts().head(top_n)
+    return prop
 
 
-def get_amenity_premiums(df, min_listings=10):
-    """Compute the price & rating premium for having each common amenity."""
-    if "amenities" not in df.columns or "price" not in df.columns:
+def parse_amenities(df):
+    """Return value counts of top 20 most common amenities."""
+    if 'amenities' not in df.columns:
+        return pd.Series(dtype=float)
+
+    all_amenities = []
+    for amenities in df['amenities'].dropna():
+        clean = amenities.replace('{', '').replace('}', '').replace('"', '')
+        items = [a.strip() for a in clean.split(',') if a.strip()]
+        all_amenities.extend(items)
+
+    return pd.Series(all_amenities).value_counts().head(20)
+
+
+def get_amenity_premiums(df, top_amenities=None):
+    """Price and rating delta for listings that have vs. don't have each amenity."""
+    if 'amenities' not in df.columns or 'price' not in df.columns:
         return pd.DataFrame()
 
-    baseline_price = df["price"].mean()
-    baseline_rating = df["review_scores_rating"].mean() if "review_scores_rating" in df.columns else np.nan
-    parsed = df["amenities"].fillna("")
+    if top_amenities is None:
+        top_amenities = [
+            'Wireless Internet', 'Heating', 'Air Conditioning', 'Kitchen',
+            'Free Parking on Premises', 'Pets Allowed', 'Hot Tub', 'Pool',
+            'Cable TV', 'Washer', 'Dryer', 'Gym',
+        ]
 
     rows = []
-    for amenity, count in parse_amenities(df, top_n=30).items():
-        if count < min_listings:
-            continue
-        mask = parsed.str.contains(re.escape(amenity), case=False, regex=True)
-        if mask.sum() < min_listings:
-            continue
-        with_price = df.loc[mask, "price"]
-        with_rating = df.loc[mask, "review_scores_rating"].dropna()
+    for amenity in top_amenities:
+        has = df['amenities'].fillna('').str.contains(amenity, case=False, regex=False)
+        if has.sum() > 10 and (~has).sum() > 10:
+            price_w = df.loc[has, 'price'].mean()
+            price_wo = df.loc[~has, 'price'].mean()
+            rating_w = df.loc[has, 'review_scores_rating'].mean()
+            rating_wo = df.loc[~has, 'review_scores_rating'].mean()
+            rows.append({
+                'Amenity': amenity,
+                'Avg Price With ($)': round(price_w, 2),
+                'Avg Price Without ($)': round(price_wo, 2),
+                'Price Premium ($)': round(price_w - price_wo, 2),
+                'Rating Premium': round(rating_w - rating_wo, 2),
+            })
 
-        price_premium = with_price.mean() - baseline_price
-        rating_premium = with_rating.mean() - baseline_rating if not with_rating.empty else 0.0
-
-        rows.append({
-            "Amenity": amenity,
-            "Listings": int(mask.sum()),
-            "Price Premium ($)": round(price_premium, 2),
-            "Rating Premium": round(rating_premium, 2),
-        })
-
-    out = pd.DataFrame(rows).sort_values("Price Premium ($)", ascending=False)
-    return out
+    return pd.DataFrame(rows).sort_values('Price Premium ($)', ascending=False)
