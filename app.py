@@ -225,7 +225,7 @@ with tab1:
                           barmode='overlay', xaxis_title='Rate (%)', yaxis_title='# Listings',
                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
                           legend=dict(orientation='h', y=1.12))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col_b:
         if 'host_response_time' in fdf.columns:
@@ -234,7 +234,7 @@ with tab1:
             fig = px.pie(rt, values='count', names='response_time',
                          title='How Fast Do Hosts Respond?',
                          color_discrete_sequence=['#FF5A5F','#00A699','#FC642D','#484848'])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     # Row 2: Superhost pie + rating vs superhost box
     col_c, col_d = st.columns(2)
@@ -247,7 +247,7 @@ with tab1:
             fig = px.pie(sh_data, values='count', names='status',
                          title='Superhost vs Regular Host Split',
                          color_discrete_sequence=['#FF5A5F','#EBEBEB'])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     with col_d:
         if 'host_is_superhost' in fdf.columns and 'review_scores_rating' in fdf.columns:
@@ -258,7 +258,7 @@ with tab1:
                          color_discrete_map={'Superhost': '#FF5A5F', 'Regular Host': '#767676'},
                          title='Overall Rating Distribution by Host Type',
                          labels={'review_scores_rating': 'Rating (out of 100)'})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     # Row 3: Sub-ratings deep dive
     st.markdown("### 🔬 Sub-Rating Deep Dive: Superhost vs Regular Host")
@@ -283,7 +283,7 @@ with tab1:
                      title='Average Sub-Rating Scores by Host Type (scale: 1–10)',
                      labels={'Score': 'Avg Score (/10)', 'host_is_superhost': 'Host Type'})
         fig.update_layout(yaxis_range=[8.0, 10.0])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # Summary KPI row
     st.markdown("### Summary")
@@ -316,7 +316,7 @@ with tab2:
         st.dataframe(
             def_df.head(20).style.background_gradient(subset=['Avg Rating (100)'], cmap='Reds_r')
                                   .format({'Avg Rating (100)': '{:.1f}', 'Deficiency Score (/10)': '{:.2f}'}),
-            use_container_width=True, height=420
+            width='stretch', height=420
         )
     else:
         st.info("Not enough data for deficiency diagnostics with current filters.")
@@ -330,7 +330,7 @@ with tab2:
                      color_discrete_sequence=['#00A699'],
                      labels={'review_scores_rating': 'Avg Rating (100)', 'neighbourhood_cleansed': ''})
         fig.update_layout(xaxis_range=[85, 100])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col_y:
         bot10 = fdf.groupby('neighbourhood_cleansed')['review_scores_rating'].mean().nsmallest(10).reset_index()
@@ -339,7 +339,7 @@ with tab2:
                      color_discrete_sequence=['#FF5A5F'],
                      labels={'review_scores_rating': 'Avg Rating (100)', 'neighbourhood_cleansed': ''})
         fig.update_layout(xaxis_range=[60, 100])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # Sub-ratings heatmap by neighbourhood
     st.markdown("### 🌡️ Sub-Rating Heatmap by Neighbourhood (Bottom 15)")
@@ -359,7 +359,7 @@ with tab2:
         fig = px.imshow(heat, color_continuous_scale='RdYlGn', aspect='auto',
                         title='Sub-Rating Heatmap (bottom 15 neighbourhoods by cleanliness)',
                         labels=dict(color='Score /10'))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # Map
     if 'latitude' in fdf.columns and 'longitude' in fdf.columns:
@@ -373,7 +373,7 @@ with tab2:
                                 title='Ratings by Location (bubble = price)',
                                 hover_data=['neighbourhood_cleansed', 'price', 'review_scores_rating'])
         fig.update_layout(height=520)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  TAB 3 — REVENUE ANALYSIS
@@ -396,14 +396,14 @@ with tab3:
                              color_continuous_scale='Teal',
                              title='Top 20 Neighbourhoods by Real Occupancy Rate (%)',
                              labels={'occupancy_rate_pct': 'Occupancy (%)', 'neighbourhood': ''})
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             with c_occ2:
                 st.markdown("**Occupancy Summary**")
                 st.dataframe(occ_df.head(15).style.format({
                     'occupancy_rate_pct': '{:.1f}%',
                     'booked_nights': '{:,}',
                     'total_nights': '{:,}',
-                }), use_container_width=True)
+                }), width='stretch')
 
         # ── 3B: Real Revenue from calendar ────────────────────────────────────
         st.markdown("### 💵 Real Revenue by Neighbourhood (booked nights × price)")
@@ -417,14 +417,14 @@ with tab3:
                              color_continuous_scale='Plasma',
                              title='Top 15 Neighbourhoods by Total Calendar Revenue ($)',
                              labels={'total_revenue': 'Total Revenue ($)', 'neighbourhood': ''})
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             with c_r2:
                 st.markdown("**Revenue Detail Table**")
                 st.dataframe(real_rev.head(15).style.format({
                     'total_revenue': '${:,.0f}',
                     'avg_nightly_price': '${:.2f}',
                     'booked_nights': '{:,}',
-                }), use_container_width=True)
+                }), width='stretch')
 
         # ── 3C: Seasonal Trends ────────────────────────────────────────────────
         st.markdown("### 📈 Seasonal Occupancy & Price Trends")
@@ -437,14 +437,14 @@ with tab3:
                               color_discrete_sequence=['#FF5A5F'],
                               labels={'month': 'Month', 'occupancy_rate_pct': 'Occupancy (%)'})
                 fig.update_layout(xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             with col_s2:
                 fig = px.line(seasonal.reset_index(), x='month', y='avg_price',
                               markers=True, title='Monthly Average Nightly Price ($)',
                               color_discrete_sequence=['#00A699'],
                               labels={'month': 'Month', 'avg_price': 'Avg Price ($)'})
                 fig.update_layout(xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
     else:
         st.warning("📂 **calendar.csv not loaded** — showing proxy revenue estimates based on listings data.")
 
@@ -459,11 +459,11 @@ with tab3:
                          color_continuous_scale='Viridis',
                          title='Estimated Monthly Revenue by Macro Region',
                          labels={'estimated_monthly_revenue': 'Est. Revenue ($)'})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         with c_m2:
             st.dataframe(macro_rev[['listing_count', 'avg_price', 'estimated_monthly_revenue']]
                          .style.format({'avg_price': '${:.0f}', 'estimated_monthly_revenue': '${:,.0f}'}),
-                         use_container_width=True)
+                         width='stretch')
 
     # ── 3E: Price vs listing count scatter ────────────────────────────────────
     st.markdown("### 🎯 What Drives Revenue? Avg Price vs Listing Volume")
@@ -479,7 +479,7 @@ with tab3:
                                  'avg_price': 'Avg Nightly Price ($)',
                                  'avg_rating': 'Avg Rating'})
         fig.update_layout(height=480)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 # ──────────────────────────────────────────────────────────────────────────────
 #  TAB 4 — PROPERTY LEVEL ANALYSIS
@@ -500,13 +500,13 @@ with tab4:
                          color='price', color_continuous_scale='Viridis',
                          title='Top 10 Property Types (color = avg price)',
                          labels={'count': '# Listings', 'property_type': ''})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
     with col_p2:
         if 'by_room' in prop:
             fig = px.pie(prop['by_room'].reset_index(), values='count', names='room_type',
                          title='Room Type Distribution',
                          color_discrete_sequence=['#FF5A5F', '#00A699', '#FC642D'])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     # ── 4B: Rating by Property Type ───────────────────────────────────────────
     st.markdown("### ⭐ Rating Distribution by Property Type")
@@ -517,7 +517,7 @@ with tab4:
                      title='Rating Spread Across Top 8 Property Types',
                      labels={'property_type': 'Property Type', 'review_scores_rating': 'Rating (100)'})
         fig.update_layout(showlegend=False, xaxis_tickangle=-20)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # ── 4C: Bedrooms & Bathrooms vs Price ─────────────────────────────────────
     col_b1, col_b2 = st.columns(2)
@@ -528,7 +528,7 @@ with tab4:
                          title='Price Spread by Number of Bedrooms',
                          labels={'price': 'Nightly Price ($)', 'bedrooms': 'Bedrooms'})
             fig.update_layout(showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     with col_b2:
         if 'by_bathrooms' in prop:
@@ -538,7 +538,7 @@ with tab4:
                          color='price', color_continuous_scale='Blues',
                          title='Avg Nightly Price by Number of Bathrooms',
                          labels={'price': 'Avg Price ($)', 'bathrooms': 'Bathrooms'})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     # ── 4D: Amenity Premium ───────────────────────────────────────────────────
     st.markdown("### 💎 Amenity Price & Rating Premiums")
@@ -550,7 +550,7 @@ with tab4:
             fig = px.bar(amenity_df, x='Price Premium ($)', y='Amenity', orientation='h',
                          color='Price Premium ($)', color_continuous_scale='Teal',
                          title='Amenity Price Premium — How Much Extra Can Hosts Charge?')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         with col_am2:
             st.markdown("**Detailed Breakdown**")
             st.dataframe(amenity_df.style.format({
@@ -558,7 +558,7 @@ with tab4:
                 'Avg Price Without ($)': '${:.0f}',
                 'Price Premium ($)':     '${:+.0f}',
                 'Rating Premium':        '{:+.2f}',
-            }), use_container_width=True)
+            }), width='stretch')
 
     # ── 4E: Top Amenities by Count ────────────────────────────────────────────
     st.markdown("### 📋 Most Common Amenities")
@@ -570,7 +570,7 @@ with tab4:
                      title='Top 15 Most Listed Amenities',
                      labels={'x': '# Listings', 'y': 'Amenity'})
         fig.update_layout(height=450)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 # ─── Footer ───────────────────────────────────────────────────────────────────
 st.markdown("---")
