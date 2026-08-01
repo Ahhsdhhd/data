@@ -1,327 +1,209 @@
-# 🛖 Airbnb Intelligence Dashboard
+# 🏠 Airbnb Analytics Dashboard
 
-An interactive **business intelligence dashboard** built with **Streamlit + Plotly** that analyzes the **Seattle Airbnb Open Data** (Kaggle) to answer four key business questions about host quality, area ratings, revenue generation, and property performance.
-
-![Stack](https://img.shields.io/badge/Streamlit-1.60-FF4B4B) ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB) ![Plotly](https://img.shields.io/badge/Plotly-6.0-3F4F75) ![License](https://img.shields.io/badge/License-MIT-green)
+> **Seattle Airbnb Case Study** — An interactive analytics dashboard built with Streamlit, Plotly, and Pandas to answer 4 core business questions from real-world Airbnb data.
 
 ---
 
-## 📋 Table of Contents
+## 📌 Case Study Overview
 
-- [Overview](#overview)
-- [Business Questions Answered](#business-questions-answered)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Dataset](#dataset)
-- [Project Structure](#project-structure)
-- [How It Works](#how-it-works)
-- [Getting Started](#getting-started)
-  - [1. Prerequisites](#1-prerequisites)
-  - [2. Install Dependencies](#2-install-dependencies)
-  - [3. Download the Dataset](#3-download-the-dataset)
-  - [4. Run the App](#4-run-the-app)
-- [Dashboard Guide](#dashboard-guide)
-  - [Sidebar Filters](#sidebar-filters)
-  - [KPI Cards](#kpi-cards)
-  - [Tab 1 · Host Quality](#tab-1--host-quality)
-  - [Tab 2 · Area Ratings](#tab-2--area-ratings)
-  - [Tab 3 · Revenue Insights](#tab-3--revenue-insights)
-  - [Tab 4 · Property Analysis](#tab-4--property-analysis)
-- [Data Processing Details](#data-processing-details)
-- [Customization](#customization)
-- [Troubleshooting](#troubleshooting)
-- [Roadmap](#roadmap)
-- [License](#license)
+Airbnb is one of the world's largest online accommodation platforms with millions of listings in over 220 countries. This dashboard uses the **Seattle Airbnb Open Data** to help stakeholders understand:
+
+1. **Host Quality** — How are hosts performing across response rates, acceptance rates, and guest ratings?
+2. **Area Diagnostics** — Which neighbourhoods are getting poor ratings, and what specifically needs improvement?
+3. **Revenue Analysis** — Which regions generate the most revenue, and what drives those numbers?
+4. **Property Analysis** — How do property configurations and amenities affect pricing and guest satisfaction?
 
 ---
 
-## Overview
+## 🚀 Getting Started
 
-This dashboard transforms a **raw 92-column listings CSV + 1.4M-row calendar CSV** into a modern, dark-themed analytics experience. It shows **host quality metrics**, **geographic rating gaps**, **real revenue estimates computed from calendar bookings**, and **property-level performance** — all filterable in real time from the sidebar.
+### Prerequisites
+- Python 3.10+
+- Seattle Airbnb dataset (see below)
 
-> **What makes it special:** Revenue and occupancy are *not* guessed. They are derived from the `calendar.csv` file, which records each listing's daily price and whether each night was booked — giving a realistic revenue picture per neighbourhood.
-
----
-
-## Business Questions Answered
-
-| # | Question | Where answered |
-|---|----------|----------------|
-| 1 | **How is our host quality looking?** | Tab 1 · Host Quality |
-| 2 | **Which areas get bad ratings — what should they improve?** | Tab 2 · Area Ratings |
-| 3 | **Which regions generate good revenue?** | Tab 3 · Revenue Insights |
-| 4 | **Property level analysis** | Tab 4 · Property Analysis |
-
----
-
-## Features
-
-- 🎛️ **Global sidebar filters** — neighbourhood group, room type, property type, price range. Every chart and KPI updates instantly.
-- 🧮 **Live KPI cards** — listings, avg price, guest rating, estimated monthly revenue, occupancy, superhost share.
-- 👤 **Host Quality tab** — superhost split, response/acceptance rate distributions, host tenure, rating by superhost status, response-rate vs rating trend (OLS).
-- 📍 **Area Ratings tab** — lowest & highest rated neighbourhoods, a **radar chart** comparing the weakest area against the market average across cleanliness / communication / value / location / check-in / accuracy.
-- 💰 **Revenue Insights tab** — monthly revenue leaderboard, revenue treemap, occupancy vs price scatter, price vs rating bubbles.
-- 🏘️ **Property Analysis tab** — property type mix, room type pie, price by bedrooms, rating by property type, **amenities** that carry a price premium.
-- 🎨 **Custom design system** — dark glassmorphism UI, Google Fonts (Plus Jakarta Sans / Inter), gradient accents, hover-lift cards, custom scrollbar.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | [Streamlit](https://streamlit.io) (web UI framework) |
-| Visualisation | [Plotly Express](https://plotly.com/python/) + Plotly Graph Objects |
-| Data processing | [pandas](https://pandas.pydata.org) / [NumPy](https://numpy.org) |
-| Trend analysis | [statsmodels](https://www.statsmodels.org) (OLS trendline) |
-| Data download | [kagglehub](https://github.com/Kaggle/kagglehub) |
-| Language | Python 3.10+ |
-
----
-
-## Dataset
-
-Source: **Seattle Airbnb Open Data** on Kaggle — [`airbnb/seattle`](https://www.kaggle.com/datasets/airbnb/seattle)
-
-| File | Rows | Description |
-|------|------|-------------|
-| `listings.csv` | 3,818 | One row per listing · 92 columns: host info, location, property, pricing, reviews, availability |
-| `calendar.csv` | 1,393,570 | One row per **listing × day**: date, price, availability (t/f) |
-| `reviews.csv` | 84,849 | Free-text guest reviews (not used in this dashboard) |
-
-**Key columns used:**
-
-- **Host:** `host_response_rate`, `host_acceptance_rate`, `host_is_superhost`, `host_since`, `host_total_listings_count`, `host_identity_verified`, `host_has_profile_pic`
-- **Location:** `neighbourhood_group_cleansed`, `neighbourhood_cleansed`, `latitude`, `longitude`
-- **Property:** `property_type`, `room_type`, `bedrooms`, `bathrooms`, `accommodates`, `amenities`
-- **Pricing:** `price`, `cleaning_fee`, `security_deposit`, `extra_people`
-- **Reviews:** `review_scores_rating`, `review_scores_cleanliness`, `review_scores_communication`, `review_scores_value`, `review_scores_location`, `review_scores_checkin`, `review_scores_accuracy`, `number_of_reviews`, `reviews_per_month`
-- **Calendar:** `listing_id`, `date`, `available`, `price`
-
----
-
-## Project Structure
-
-```
-airbnb_dashboard/
-├── app.py                # Main Streamlit application (UI + all tabs)
-├── data_prep.py          # Data loading, cleaning & derived metrics
-├── requirements.txt      # Python dependencies
-├── .gitignore            # Ignores __pycache__, *.pyc, data/*.csv
-├── README.md             # This documentation
-└── data/                 # Your CSV files live here (git-ignored)
-```
-
----
-
-## How It Works
-
-### Architecture / Data Flow
-
-```
-Kaggle (airbnb/seattle)
-        │  kagglehub.dataset_download()
-        ▼
-  data/listings.csv ───────────┐
-  data/calendar.csv ───────────┤
-        │                       │
-        ▼                       ▼
-   data_prep.py           data_prep.py
-  load_listings()        compute_revenue_summary()
-  (clean 92 cols)        (aggregate daily calendar)
-        │                       │
-        └──────────┬────────────┘
-                   ▼
-            full_join()
-   listings merged with revenue on listing_id
-                   │
-                   ▼
-              app.py  (Streamlit)
-   ├── global filters (sidebar)
-   ├── KPI cards
-   ├── 4 tabs of Plotly charts
-   └── every visual reacts to the filters
-```
-
-### `data_prep.py` — the engine room
-
-| Function | Purpose |
-|----------|---------|
-| `load_listings()` | Reads `listings.csv`, strips `$`/`,` from money columns, `%` from rate columns, converts `t`/`f` to booleans, parses dates, computes `host_tenure_years`. |
-| `load_calendar()` | Reads `calendar.csv` efficiently (4 columns only), parses dates & prices, derives a `booked` flag (`available == 'f'`). |
-| `compute_revenue_summary()` | Per listing: total nights, **booked nights**, avg daily price (from nights that have a price), occupancy %, `estimated_total_revenue = avg_price × booked_nights`, `monthly_revenue` normalised to 30-day months. |
-| `full_join()` | Merges listings with revenue on `listing_id → id`. **This is the main DataFrame every chart reads.** |
-| `revenue_by_group()` | Aggregates revenue/price/occupancy/rating by neighbourhood group. |
-| `ratings_by_group()` | Aggregates the six review-score dimensions per neighbourhood group. |
-| `parse_amenities()` | Flattens the JSON-style `amenities` strings into a per-amenity count. |
-
-> **⚠️ Revenue nuance:** In `calendar.csv`, prices are only recorded on *available* nights; booked nights have `NaN`. We therefore use the **average nightly price of a listing** (from its available nights) and multiply by **booked-night count**. This is the most defensible estimate available from the dataset.
-
-### `app.py` — the presentation layer
-
-- **Design system:** injected as a `<style>` block (`CUSTOM_CSS`) with CSS variables, Google Fonts import, glassmorphism KPI cards, styled tabs, hover animations.
-- **Caching:** `@st.cache_data` on `get_df()` and all data-prep functions means the heavy 1.4M-row calendar processing runs **once**, then instant on every rerun.
-- **Filtering:** one central filtered frame `fdf` is computed after the sidebar, and **all** tabs render from it — so filters stay in sync everywhere.
-- **Plotly theming:** a shared `THEME` dict (dark transparent background, muted grid, spike lines) is applied via `chart_config(fig)`.
-
----
-
-## Getting Started
-
-### 1. Prerequisites
-
-- Python **3.10 or newer** (tested on 3.12)
-- ~700 MB free disk for the dataset
-
-### 2. Install Dependencies
-
+### Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Download the Dataset
+### Dataset
+Download the dataset from [Kaggle - Seattle Airbnb Open Data](https://www.kaggle.com/datasets/airbnb/seattle) and place the files inside the `data/` folder:
 
-**Option A — automatic (recommended, no Kaggle login):**
-
-```bash
-python -c "import kagglehub; print(kagglehub.dataset_download('airbnb/seattle'))"
+```
+data/
+├── listings.csv      # Main dataset with host, property, and rating info
+├── calendar.csv      # Nightly availability and pricing data
+└── reviews.csv       # Guest review text data
 ```
 
-Then copy the three CSVs into the project's `data/` folder:
-
-```bash
-# on Windows PowerShell:
-Copy-Item "$env:USERPROFILE\.cache\kagglehub\datasets\airbnb\seattle\*\*.csv" .\data\
-```
-
-**Option B — manual:** download from the [Kaggle dataset page](https://www.kaggle.com/datasets/airbnb/seattle) and save `listings.csv` + `calendar.csv` (reviews optional) into `airbnb_dashboard/data/`.
-
-### 4. Run the App
-
+### Run the App
 ```bash
 streamlit run app.py
 ```
-
-Your browser opens automatically at **http://localhost:8501**.
-
-> 💡 If `streamlit` isn't on your PATH (common on Windows), use the full Python path:
-> `python -m streamlit run app.py`
+Then open **http://localhost:8501** in your browser.
 
 ---
 
-## Dashboard Guide
-
-### Sidebar Filters
-
-| Filter | Options |
-|--------|---------|
-| **Neighbourhood Group** | 17 areas (Capitol Hill, Downtown, Queen Anne, West Seattle, …) |
-| **Room Type** | Entire home/apt · Private room · Shared room |
-| **Property Type** | Apartment, House, Condominium, Townhouse, … |
-| **Price / night** | Range slider (min → 98th percentile) |
-
-All four filters combine with **AND** logic. The sidebar footer shows how many of the 3,818 listings currently match.
-
-### KPI Cards
-
-| Card | What it tells you |
-|------|-------------------|
-| 🏠 Active Listings | Count matching filters |
-| 💰 Avg Nightly Rate | Mean + median price per night |
-| ⭐ Avg Guest Rating | Mean `review_scores_rating` (0–100) |
-| 📈 Est. Monthly Rev | Sum of per-listing monthly revenue |
-| 🛎️ Occupancy Rate | Mean % of nights booked |
-| 👑 Superhosts | Share of superhost listings + avg response rate |
-
-### Tab 1 · Host Quality
-
-- **Superhost Split** — donut with % in the centre.
-- **Response / Acceptance Rate Distributions** — histograms; a healthy market clusters near 100%.
-- **Host Tenure** — years on Airbnb.
-- **Rating by Superhost Status** — box plot; superhosts should out-rate standard hosts.
-- **Response Rate vs Guest Rating** — scatter with an OLS trendline (requires `statsmodels`).
-
-### Tab 2 · Area Ratings
-
-- **Lowest / Highest Rated Neighbourhoods** — horizontal bars (only areas with ≥5 listings to avoid noisy extremes).
-- **Radar chart** — the single weakest area vs the market average across the six review dimensions. **This directly answers "what improvement do they need?"** — e.g. a deep dip on `value` or `cleanliness` tells that area exactly what to fix.
-
-### Tab 3 · Revenue Insights
-
-- **Monthly Revenue by Neighbourhood** — bar chart, top 12.
-- **Revenue Share Treemap** — visual weight of each area.
-- **Occupancy vs Price** — bubble scatter (bubble size = monthly revenue); the sweet spot is high occupancy **and** high price.
-- **Price vs Rating** — colour-coded by occupancy.
-
-### Tab 4 · Property Analysis
-
-- **Top Property Types** & **Room Type Mix**.
-- **Avg Price by Bedrooms**.
-- **Rating Distribution by Property Type**.
-- **Most Common Amenities** + **price premium** for listings offering Wifi, Kitchen, Parking, Washer, Heating, Breakfast.
-
----
-
-## Data Processing Details
-
-### Cleaning (`load_listings`)
-
-- `price`, `cleaning_fee`, `security_deposit`, `extra_people` → strip `$` and `,`, cast to float.
-- `host_response_rate`, `host_acceptance_rate` → strip `%`, cast to float.
-- `host_is_superhost`, `instant_bookable`, `is_location_exact`, … → `t`/`f` → `True`/`False`.
-- `host_since`, `first_review`, `last_review` → `datetime`; `host_tenure_years` derived.
-
-### Revenue & Occupancy (`compute_revenue_summary`)
+## 📁 Project Structure
 
 ```
-total_nights      = count of days in calendar for a listing
-booked_nights     = count of days where available == 'f'
-occupancy_rate    = booked_nights / total_nights × 100
-avg_daily_price   = mean of prices on available nights
-est_total_revenue = avg_daily_price × booked_nights
-monthly_revenue   = est_total_revenue / (days_covered / 30)
+airbnb_dashboard/
+├── app.py              # Main Streamlit UI — renders all pages, filters, and charts
+├── data_loader.py      # Data engine — loads, cleans, and computes all metrics
+├── requirements.txt    # Python package dependencies
+└── data/
+    ├── listings.csv
+    ├── calendar.csv
+    └── reviews.csv
 ```
 
 ---
 
-## Customization
+## 🔧 How It Works
 
-| What | Where to edit |
-|------|---------------|
-| Brand colours | `PRIMARY`, `SECONDARY`, `DARK`, `CARD_BG` constants at top of `app.py` + CSS `:root` variables |
-| Fonts | `@import url('...')` in `CUSTOM_CSS` |
-| KPI cards | `kpi_data` list in `app.py` |
-| Chart colours | `color_discrete_map` / `color_continuous_scale` on each `px` call |
-| Min listings per area | `>= 5` filters in Area Ratings / Revenue tabs |
-| Filters | Sidebar `multiselect` / `slider` blocks |
-| Revenue window | `monthly_revenue` normalisation in `data_prep.py` |
+### Architecture
 
----
+```
+listings.csv ──► data_loader.py ──► computed metrics ──► app.py ──► Streamlit UI
+calendar.csv ──►                                                      (charts + filters)
+```
 
-## Troubleshooting
+### Data Pipeline (`data_loader.py`)
 
-| Problem | Fix |
-|---------|-----|
-| `ModuleNotFoundError: No module named 'statsmodels'` | `pip install statsmodels` (needed for the OLS trendline) |
-| App shows "Data files not found" | Ensure `listings.csv` & `calendar.csv` are inside `data/` |
-| `streamlit: command not found` | Run `python -m streamlit run app.py` instead |
-| SSL / build errors during `pip install` | Use an official Python 3.10+ from python.org, not MSYS2/MinGW |
-| Dashboard is slow on first load | First run aggregates 1.4M calendar rows once; it is cached afterwards |
-| KPI shows `0` revenue | Calendar may be empty for those listings — check `data/calendar.csv` is the full file |
+All data cleaning and aggregation is handled here before reaching the UI layer:
 
----
-
-## Roadmap
-
-- [ ] Add a **map view** (scatter-mapbox of listings coloured by rating / price)
-- [ ] Add **calendar/seasonality** analysis (revenue by month)
-- [ ] **Machine learning** price prediction from property attributes
-- [ ] Reviews **sentiment analysis** from `reviews.csv`
-- [ ] Export filtered data to CSV / PDF report
-- [ ] Multi-city support (other Airbnb datasets)
+| Function | What It Does |
+|---|---|
+| `load_listings_data()` | Reads `listings.csv`, cleans price columns (`$128` → `128.0`), converts percentages (`97%` → `97.0`), maps boolean strings (`t/f` → `True/False`) |
+| `load_calendar_data()` | Reads `calendar.csv`, cleans prices, parses dates |
+| `get_host_quality_metrics()` | Calculates Superhost%, avg response rate, acceptance rate, and overall rating |
+| `get_area_ratings()` | Groups listings by neighbourhood and computes average rating, listing count, and price |
+| `get_area_deficiencies()` | For each neighbourhood, identifies the **lowest sub-rating category** (cleanliness, check-in, etc.) as the primary improvement area |
+| `get_revenue_data()` | Estimates monthly revenue per neighbourhood: `avg_price × reviews_per_month` |
+| `get_regional_revenue_data()` | Same as above but grouped by macro region (`neighbourhood_group_cleansed`) |
+| `get_property_analysis()` | Groups listings by property type, room type, and bedroom count |
+| `get_amenity_premiums()` | Calculates price and rating difference for listings that have vs. don't have specific amenities |
+| `parse_amenities()` | Counts the top 20 most frequently listed amenities |
 
 ---
 
-## License
+## 🔍 Interactive Filters (Sidebar)
 
-MIT. Data belongs to Airbnb and is provided via the [Seattle Airbnb Open Data](https://www.kaggle.com/datasets/airbnb/seattle) Kaggle dataset.
+All 4 dashboard tabs respond dynamically to these sidebar controls:
+
+| Filter | Type | Effect |
+|---|---|---|
+| 💰 Price Range | Slider | Limits listings to a selected nightly price band |
+| 🗺️ Macro Regions | Multi-select | Filters by large neighbourhood groups |
+| 🏠 Property Types | Multi-select | e.g., House, Apartment, Condominium |
+| 🛏️ Room Types | Multi-select | Entire home / Private room / Shared room |
+| ⭐ Superhost Only | Toggle | Shows only Superhost-verified listings |
+| ⚡ Instant Bookable | Toggle | Shows only instantly bookable listings |
+
+---
+
+## 📊 Dashboard Tabs
+
+### 👤 Tab 1 — Host Quality
+**Business Question: How is our Host quality looking like?**
+
+| Visualization | Description |
+|---|---|
+| Histogram (Overlapping) | Response Rate vs. Acceptance Rate distribution across all hosts |
+| Pie Chart | Host response speed categories (within an hour / a day / etc.) |
+| Grouped Bar Chart | Sub-rating comparison (Cleanliness, Communication, Check-in, etc.) between Superhosts and Regular Hosts |
+
+### 📍 Tab 2 — Area Ratings & Diagnostics
+**Business Question: Which areas are getting bad ratings — what improvement do they need?**
+
+| Visualization | Description |
+|---|---|
+| Diagnostic Table | Ranks low-performing neighbourhoods and flags their exact weakest sub-rating |
+| Top 10 Bar Chart | Best-rated neighbourhoods (teal bars) |
+| Bottom 10 Bar Chart | Worst-rated neighbourhoods (coral bars) |
+| Interactive Map | Color-coded by rating score, bubble size = nightly price |
+
+**How deficiencies are identified:**
+```
+For each neighbourhood:
+  → Average all 6 sub-ratings (Cleanliness, Accuracy, Check-in, 
+    Communication, Location, Value)
+  → Find the minimum → flag as "Primary Deficiency"
+```
+
+### 💰 Tab 3 — Revenue Analysis
+**Business Question: Which regions generate good revenue?**
+
+| Visualization | Description |
+|---|---|
+| Macro Region Bar Chart | Estimated monthly revenue by large neighborhood group |
+| Region Summary Table | Lists avg price, listing count, and total revenue per region |
+| Micro Bar Chart | Top 15 most lucrative individual neighbourhoods |
+
+**Revenue Formula:**
+```
+Estimated Monthly Revenue = Average Nightly Price × Sum of Reviews Per Month
+```
+> *This is a widely-used proxy for occupancy since exact booking data is not public.*
+
+### 🏘️ Tab 4 — Property Level Analysis
+**Business Question: Property level analysis**
+
+| Visualization | Description |
+|---|---|
+| Horizontal Bar (Popularity) | Top 10 property types by listing count, colored by average price |
+| Pie Chart | Room type distribution split |
+| Box Plot | Price spread for 1–5 bedroom listings |
+| Amenity Premium Bar Chart | Which amenities let hosts charge higher rates |
+| Amenity Premium Table | Shows exact price and rating premium per amenity |
+
+**Amenity Premium Formula:**
+```
+Price Premium ($) = Avg price of listings WITH amenity 
+                 − Avg price of listings WITHOUT amenity
+```
+
+---
+
+## 🎨 Design System
+
+The app is styled with a custom Airbnb-inspired CSS theme:
+
+| Element | Style |
+|---|---|
+| Font | Outfit (Google Fonts) |
+| Primary Color | `#FF5A5F` (Airbnb Coral) |
+| Secondary Color | `#00A699` (Airbnb Teal) |
+| Body Text | `#484848` (Airbnb Dark Charcoal) |
+| Muted Text | `#767676` (Airbnb Gray) |
+| Background | `#F7F7F7` (Off-white) |
+| Cards | White with rounded borders + drop shadows |
+
+---
+
+## 🛠️ Tech Stack
+
+| Library | Version | Purpose |
+|---|---|---|
+| `streamlit` | 1.32+ | UI framework for the dashboard |
+| `plotly` | 5.18+ | Interactive charts, maps, and graphs |
+| `pandas` | 2.2+ | Data loading, cleaning, and aggregation |
+| `numpy` | 1.26+ | Numerical operations |
+
+---
+
+## 📈 Key Metrics at a Glance
+
+Once data is loaded, the KPI cards at the top always show:
+- **Total Listings** (respects active filters)
+- **Average Price** (filtered)
+- **Average Rating** out of 100
+- **Superhost %**
+- **Number of Neighbourhoods** in filter scope
+
+---
+
+## 📄 License
+
+Dataset: [Seattle Airbnb Open Data — Kaggle](https://www.kaggle.com/datasets/airbnb/seattle)  
+Dashboard built for educational and analytical purposes.
